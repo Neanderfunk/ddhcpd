@@ -145,7 +145,9 @@ void cleanup_process_table(int signum)
 {
   UNUSED(signum);
   DEBUG("cleanup_process_table(...): Got signal %i\n", signum);
-  wait(NULL);
+
+  // Signals do not queue up, reap every child which has terminated so far
+  while (waitpid(-1, NULL, WNOHANG) > 0);
 }
 
 void hook_init() {
