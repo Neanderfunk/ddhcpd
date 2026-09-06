@@ -432,6 +432,12 @@ int main(int argc, char** argv) {
   INFO("CONFIG: client_interface=%s\n", interface_client);
   INFO("CONFIG: group_interface=%s\n", interface);
 
+  if (netsock_node_id_init(interface, &config) < 0) {
+    exit(1);
+  }
+
+  INFO("CONFIG: node_id=0x%02x%02x%02x%02x%02x%02x%02x%02x\n", HEX_NODE_ID(config.node_id));
+
   //Register signal handlers
   handle_signal(SIGHUP, SIG_IGN);
   handle_signal(SIGPIPE, SIG_IGN);

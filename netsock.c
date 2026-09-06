@@ -29,6 +29,7 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <sys/random.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/ioctl.h>
@@ -82,6 +83,27 @@ struct in6_addr* get_ipv6_linklokal(char* interface) {
 
   freeifaddrs(ifaddr);
   return NULL;
+}
+
+ATTR_NONNULL_ALL int netsock_node_id_init(char* interface, ddhcp_config* config) {
+  struct in6_addr* linklocal = get_ipv6_linklokal(interface);
+
+  if (linklocal) {
+    // The lower half of a link local address is the interface identifier,
+    // which is unique in our network and of node id size.
+    memcpy(config->node_id, linklocal->s6_addr + 8, sizeof(ddhcp_node_id));
+    free(linklocal);
+    return 0;
+  }
+
+  WARNING("netsock_node_id_init(...): No link local address on '%s', falling back to a random node id\n", interface);
+
+  if (getrandom(config->node_id, sizeof(ddhcp_node_id), 0) != (ssize_t) sizeof(ddhcp_node_id)) {
+    FATAL("netsock_node_id_init(...): Unable to generate a random node id\n");
+    return -1;
+  }
+
+  return 0;
 }
 
 ATTR_NONNULL_ALL int netsock_unix_socket_open(ddhcp_epoll_data* data) {
