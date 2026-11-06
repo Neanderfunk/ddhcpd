@@ -260,7 +260,7 @@ ATTR_NONNULL_ALL void ddhcp_dhcp_renewlease(struct ddhcp_mcast_packet* packet, d
   free(hwaddr);
 #endif
 
-  int ret = dhcp_rhdl_request(&(packet->renew_payload->address), packet->renew_payload->chaddr, config);
+  int ret = dhcp_rhdl_request(&(packet->renew_payload->address), packet->renew_payload->chaddr, packet->renew_payload->lease_seconds, config);
 
   ddhcp_mcast_packet* answer = NULL;
 

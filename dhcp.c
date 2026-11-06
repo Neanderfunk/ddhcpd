@@ -304,8 +304,8 @@ ATTR_NONNULL_ALL int dhcp_hdl_discover(int socket, dhcp_packet* discover, ddhcp_
   return 0;
 }
 
-ATTR_NONNULL_ALL int dhcp_rhdl_request(uint32_t* address, uint8_t* chaddr, ddhcp_config* config) {
-  DEBUG("dhcp_rhdl_request(address,chaddr,config)\n");
+ATTR_NONNULL_ALL int dhcp_rhdl_request(uint32_t* address, uint8_t* chaddr, uint32_t lease_seconds, ddhcp_config* config) {
+  DEBUG("dhcp_rhdl_request(address,chaddr,lease_seconds,config)\n");
 
   time_t now = time(NULL);
   ddhcp_block* lease_block = NULL;
@@ -322,6 +322,22 @@ ATTR_NONNULL_ALL int dhcp_rhdl_request(uint32_t* address, uint8_t* chaddr, ddhcp
     // A lease of another client is not handed over
     if (lease->state != FREE && memcmp(lease->chaddr, chaddr, 16) != 0) {
       DEBUG("dhcp_rhdl_request(...): lease belongs to another client\n");
+
+      // The other node still has a running lease for this address, a
+      // handover after a block conflict (block_release_handover() sends the
+      // remaining seconds; a plain renewal sends 0). Its client keeps using
+      // the address until its next renewal gets our NAK, so the address
+      // must not be given away again before that lease ends, even if our
+      // own client is gone by then.
+      if (lease_seconds > 0) {
+        time_t other_end = now + (time_t) lease_seconds;
+
+        if (lease->lease_end < other_end) {
+          INFO("dhcp_rhdl_request(...): address held by two clients, kept for %u s\n", lease_seconds);
+          lease->lease_end = other_end;
+        }
+      }
+
       return 1;
     }
 

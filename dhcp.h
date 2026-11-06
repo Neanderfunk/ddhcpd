@@ -33,8 +33,10 @@ ATTR_NONNULL_ALL int dhcp_hdl_request(int socket, struct dhcp_packet* request, d
 
 /**
  * DDHCP Remote Request (Renew)
+ * lease_seconds: remaining time of the other node's lease when it hands the
+ * lease over after a block conflict, 0 for a plain renewal.
  */
-ATTR_NONNULL_ALL int dhcp_rhdl_request(uint32_t* address, uint8_t* chaddr, ddhcp_config* config);
+ATTR_NONNULL_ALL int dhcp_rhdl_request(uint32_t* address, uint8_t* chaddr, uint32_t lease_seconds, ddhcp_config* config);
 /**
  * DDHCP Remote Answer (Ack)
  */
