@@ -19,9 +19,11 @@ Gluon-community-packages baut).
 | Konflikt: mehr aktive Leases gewinnt | Claimen zwei Knoten denselben Block (nach Inselbetrieb, etwa beim Supernode-Schwenk), behält ihn, wer darin mehr aktive Leases hat; bei Gleichstand die node id wie bisher. Die Zahl steht im bisher reservierten Byte des Claims, kein neues Protokoll |
 | Verlierer lässt auslaufen | neuer Blockzustand RELEASING: nichts Neues mehr aus dem Block, Anfragen seiner Clients gehen an den neuen Eigner, fertig wenn keine eigene Lease mehr aktiv ist, spätestens nach der Lease-Zeit |
 | Verlierer übergibt seine Leases | je aktive Lease ein RENEWLEASE an den Gewinner (dieselbe Nachricht wie beim Roaming); der trägt sie ein (ACK) oder lehnt ab, wenn er die Adresse inzwischen anders vergeben hat (NAK, echte Doppelvergabe). Wiederholt, bis beantwortet |
-| Zähler für Konflikte | gewonnen, verloren, Übergaben ACK/NAK; Blöcke im Auslaufen in `-m` |
+| Zähler für Konflikte | gewonnen, verloren, Übergaben ACK/NAK; Blöcke im Auslaufen in `-m`. Die Zahl der Konflikte ist `lost` (einmal je Block beim Verlierer). `won` zählt nur Konflikte, bei denen der Claim des Verlierers ankam, bevor er nachgab, also eine Untergrenze; je Block und Konflikt höchstens einmal |
 | Keine Ausgabe je Paket auf stdout | `dhcp_packet_send` schrieb je Paket „Message LEN“ per printf; jetzt DEBUG |
 | Sofort beenden auf SIGTERM/SIGINT | die Schleife wiederholte `epoll_wait` nach EINTR, ohne das Abbruch-Flag zu prüfen, und merkte das Signal erst nach dem nächsten Timeout (7.5 s); procd schickt nach 5 s SIGKILL, jeder Neustart dauerte so lange. Jetzt `epoll_pwait`, die Signale kommen nur dort an |
+| NAK mit Server-ID, per Broadcast | das DHCPNAK trug nur den Nachrichtentyp; udhcpc verwirft ein NAK ohne Server-ID (RFC 2131 verlangt sie), und im RENEWING ging es per Unicast an `ciaddr`. Nach einem Blockkonflikt behielt der Client des Verlierers so eine doppelt vergebene Adresse bis zum Lease-Ende |
+| Übergabe-NAK hält die Adresse | lehnt der Gewinner eine übergebene Lease ab, vergibt er die Adresse nicht neu, bevor die Lease des Verlierers abgelaufen ist (die Restzeit kommt im RENEWLEASE mit) |
 | Option 55 nur im Debug-Log | die Liste der angefragten Optionen ging je Paket ungefiltert nach stderr („1 3 6 ]“, unter procd als daemon.err); jetzt eine DEBUG-Zeile |
 
 Ohne `-l` verhält sich der Zweig beim Start wie das Original. DISCOVER und
