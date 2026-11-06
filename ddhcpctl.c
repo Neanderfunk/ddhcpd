@@ -33,7 +33,7 @@ int main(int argc, char** argv) {
     exit(1);
   }
 
-  while ((c = getopt(argc, argv, "bC:dhl:o:r:sSt:v:V")) != -1) {
+  while ((c = getopt(argc, argv, "bC:dhl:mo:r:sSt:v:V")) != -1) {
     switch (c) {
     case 'h':
       show_usage = 1;
@@ -43,6 +43,11 @@ int main(int argc, char** argv) {
       //show blocks
       msglen = 1;
       buffer[0] = (uint8_t) DDHCPCTL_BLOCK_SHOW;
+      break;
+
+    case 'm':
+      msglen = 1;
+      buffer[0] = (uint8_t) DDHCPCTL_SUMMARY;
       break;
 
     case 'd':
@@ -121,6 +126,7 @@ int main(int argc, char** argv) {
     printf("-V                     Print build revision\n");
     printf("-b                     Show current block usage.\n");
     printf("-d                     Show the current dhcp options store.\n");
+    printf("-m                     Machine readable summary (blocks, leases, counters).\n");
     printf("-l TIMEOUT             Set the dhcp lease time.\n");
     printf("-o CODE:LEN:P1. .. .Pn Set DHCP Option with code,len and #len chars in decimal\n");
     printf("-v LEVEL               Set log level\n");

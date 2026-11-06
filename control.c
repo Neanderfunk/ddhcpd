@@ -56,6 +56,16 @@ ATTR_NONNULL_ALL int handle_command(int socket, uint8_t* buffer, ssize_t msglen,
     return 0;
 #endif
 
+  case DDHCPCTL_SUMMARY:
+    if (msglen != 1) {
+      DEBUG("handle_command(...): message length mismatch\n");
+      return -2;
+    }
+
+    DEBUG("handle_command(...): show summary\n");
+    block_show_summary(socket, config);
+    return 0;
+
   case DDHCPCTL_DHCP_OPTION_SET:
     DEBUG("handle_command(...): set dhcp option\n");
 

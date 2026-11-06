@@ -543,6 +543,8 @@ int main(int argc, char** argv) {
     hook(HOOK_LEARNING_PHASE_END,&config);
   }
 
+  config.learning_phase = (uint8_t) learning_phase;
+
 
   INFO("loop timeout: %i msecs\n", get_loop_timeout(&config));
 
@@ -572,6 +574,7 @@ int main(int argc, char** argv) {
       timeout_time = now + (config.tentative_timeout >> 1);
       if (learning_phase) {
         learning_phase = 0;
+        config.learning_phase = 0;
         hook(HOOK_LEARNING_PHASE_END,&config);
       }
     } else { 

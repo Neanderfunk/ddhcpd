@@ -562,3 +562,105 @@ void block_unmark_needless(ddhcp_config* config){
   // Remove needless marks flag
   config->needless_marks = 0;
 }
+
+ATTR_NONNULL_ALL void block_show_summary(int fd, ddhcp_config* config) {
+  ddhcp_block* block = config->blocks;
+  uint32_t blocks_free = 0, blocks_ours = 0, blocks_claiming = 0, blocks_foreign = 0;
+  uint32_t leases_leased = 0, leases_offered = 0, leases_free = 0;
+
+  for (uint32_t i = 0; i < config->number_of_blocks; i++, block++) {
+    switch (block->state) {
+    case DDHCP_FREE:
+      blocks_free++;
+      break;
+
+    case DDHCP_TENTATIVE:
+    case DDHCP_CLAIMING:
+      blocks_claiming++;
+      break;
+
+    // BLOCKED is never set today; counted with the foreign blocks, so that
+    // total = free + ours + claiming + foreign always holds.
+    case DDHCP_CLAIMED:
+    case DDHCP_BLOCKED:
+      blocks_foreign++;
+      break;
+
+    case DDHCP_OURS:
+      blocks_ours++;
+      break;
+
+    default:
+      break;
+    }
+
+    if (block->state != DDHCP_OURS || !block->addresses) {
+      continue;
+    }
+
+    for (uint32_t j = 0; j < block->subnet_len; j++) {
+      dhcp_lease* lease = block->addresses + j;
+
+      switch (lease->state) {
+      case LEASED:
+        leases_leased++;
+        break;
+
+      case OFFERED:
+        leases_offered++;
+        break;
+
+      case FREE:
+        leases_free++;
+        break;
+
+      default:
+        break;
+      }
+    }
+  }
+
+  dprintf(fd, "learning %u\n", config->learning_phase);
+  dprintf(fd, "blocks_total %u\n", config->number_of_blocks);
+  dprintf(fd, "blocks_free %u\n", blocks_free);
+  dprintf(fd, "blocks_ours %u\n", blocks_ours);
+  dprintf(fd, "blocks_claiming %u\n", blocks_claiming);
+  dprintf(fd, "blocks_foreign %u\n", blocks_foreign);
+  dprintf(fd, "leases_total %u\n", blocks_ours * config->block_size);
+  dprintf(fd, "leases_leased %u\n", leases_leased);
+  dprintf(fd, "leases_offered %u\n", leases_offered);
+  dprintf(fd, "leases_free %u\n", leases_free);
+
+#ifdef DDHCPD_STATISTICS
+  dprintf(fd, "roaming_in %li\n", config->statistics[STAT_DIRECT_SEND_RENEWLEASE]);
+  dprintf(fd, "roaming_out %li\n", config->statistics[STAT_DIRECT_RECV_RENEWLEASE]);
+  dprintf(fd, "roaming_ack_sent %li\n", config->statistics[STAT_DIRECT_SEND_LEASEACK]);
+  dprintf(fd, "roaming_ack_received %li\n", config->statistics[STAT_DIRECT_RECV_LEASEACK]);
+  dprintf(fd, "roaming_nak_sent %li\n", config->statistics[STAT_DIRECT_SEND_LEASENAK]);
+  dprintf(fd, "roaming_nak_received %li\n", config->statistics[STAT_DIRECT_RECV_LEASENAK]);
+  dprintf(fd, "dhcp_discover %li\n", config->statistics[STAT_DHCP_RECV_DISCOVER]);
+  dprintf(fd, "dhcp_offer %li\n", config->statistics[STAT_DHCP_SEND_OFFER]);
+  dprintf(fd, "dhcp_request %li\n", config->statistics[STAT_DHCP_RECV_REQUEST]);
+  dprintf(fd, "dhcp_ack %li\n", config->statistics[STAT_DHCP_SEND_ACK]);
+  dprintf(fd, "dhcp_nak %li\n", config->statistics[STAT_DHCP_SEND_NAK]);
+  dprintf(fd, "dhcp_release %li\n", config->statistics[STAT_DHCP_RECV_RELEASE]);
+  dprintf(fd, "dhcp_inform %li\n", config->statistics[STAT_DHCP_RECV_INFORM]);
+#endif
+
+  block = config->blocks;
+
+  for (uint32_t i = 0; i < config->number_of_blocks; i++, block++) {
+    if (block->state != DDHCP_OURS || !block->addresses) {
+      continue;
+    }
+
+    for (uint32_t j = 0; j < block->subnet_len; j++) {
+      dhcp_lease* lease = block->addresses + j;
+
+      if (lease->state == LEASED) {
+        uint8_t* m = lease->chaddr;
+        dprintf(fd, "leased %02x:%02x:%02x:%02x:%02x:%02x\n", m[0], m[1], m[2], m[3], m[4], m[5]);
+      }
+    }
+  }
+}

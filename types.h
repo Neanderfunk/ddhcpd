@@ -158,6 +158,7 @@ struct ddhcp_config {
   struct in_addr prefix;
   uint8_t prefix_len;
   uint8_t disable_dhcp;
+  uint8_t learning_phase;
 
   // Global Stuff
   time_t next_wakeup;
