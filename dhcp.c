@@ -403,6 +403,19 @@ ATTR_NONNULL_ALL int dhcp_hdl_request(int socket, struct dhcp_packet* request, d
   ddhcp_block* lease_block = NULL;
   uint32_t lease_index = 0;
 
+  // RFC 2131 4.3.2: a REQUEST carrying the server identifier of another
+  // server (SELECTING) accepts that server's OFFER; it is not for us, a NAK
+  // would only race the other server's ACK.
+  dhcp_option* server_id = find_option(request->options, request->options_len, DHCP_CODE_SERVER_IDENTIFIER);
+  dhcp_option* own_server_id = find_in_option_store(&config->options, DHCP_CODE_SERVER_IDENTIFIER);
+
+  if (server_id && own_server_id &&
+      (server_id->len != own_server_id->len || memcmp(server_id->payload, own_server_id->payload, server_id->len) != 0)) {
+    INFO("dhcp_hdl_request(...): request for another server, not answering\n");
+    statistics_record(config, STAT_DHCP_IGNORE_REQUEST, 1);
+    return 2;
+  }
+
   uint8_t* address = find_option_requested_address(request->options, request->options_len);
 
   struct in_addr requested_address;
