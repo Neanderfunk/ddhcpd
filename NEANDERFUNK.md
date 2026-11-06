@@ -21,6 +21,8 @@ Gluon-community-packages baut).
 | Verlierer übergibt seine Leases | je aktive Lease ein RENEWLEASE an den Gewinner (dieselbe Nachricht wie beim Roaming); der trägt sie ein (ACK) oder lehnt ab, wenn er die Adresse inzwischen anders vergeben hat (NAK, echte Doppelvergabe). Wiederholt, bis beantwortet |
 | Zähler für Konflikte | gewonnen, verloren, Übergaben ACK/NAK; Blöcke im Auslaufen in `-m` |
 | Keine Ausgabe je Paket auf stdout | `dhcp_packet_send` schrieb je Paket „Message LEN“ per printf; jetzt DEBUG |
+| Sofort beenden auf SIGTERM/SIGINT | die Schleife wiederholte `epoll_wait` nach EINTR, ohne das Abbruch-Flag zu prüfen, und merkte das Signal erst nach dem nächsten Timeout (7.5 s); procd schickt nach 5 s SIGKILL, jeder Neustart dauerte so lange. Jetzt `epoll_pwait`, die Signale kommen nur dort an |
+| Option 55 nur im Debug-Log | die Liste der angefragten Optionen ging je Paket ungefiltert nach stderr („1 3 6 ]“, unter procd als daemon.err); jetzt eine DEBUG-Zeile |
 
 Ohne `-l` verhält sich der Zweig beim Start wie das Original. DISCOVER und
 REQUEST verhalten sich bewusst anders (siehe Tabelle).
