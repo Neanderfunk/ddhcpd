@@ -84,6 +84,10 @@ struct ddhcp_block {
   struct in_addr subnet;
   uint8_t  subnet_len;
   uint8_t claiming_counts;
+  // When we last kept this block against a conflicting claim, in seconds
+  // modulo 2^16, 0 for never. Counts a conflict once, not once per claim of
+  // the other node. Sits in the padding before node_id.
+  uint16_t conflict_won_at;
   ddhcp_node_id node_id;
   struct in6_addr owner_address;
   time_t first_claimed;

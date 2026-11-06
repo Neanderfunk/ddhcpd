@@ -125,7 +125,16 @@ ATTR_NONNULL_ALL void ddhcp_block_process_claims(struct ddhcp_mcast_packet* pack
 
       if (ours > theirs || (ours == theirs && NODE_ID_CMP(packet->node_id, config->node_id) < 0)) {
         INFO("ddhcp_block_process_claims(...): node 0x%02x%02x%02x%02x%02x%02x%02x%02x claims our block %i, we keep it (active leases %u to %u)\n", HEX_NODE_ID(packet->node_id), block_index, ours, theirs);
-        statistics_record(config, STAT_CONFLICT_WON, 1);
+        // The other node keeps claiming until our claim reaches it, so
+        // further claims within block_timeout belong to the same conflict.
+        uint16_t stamp = (uint16_t) now ? (uint16_t) now : 1;
+        uint16_t won_at = blocks[block_index].conflict_won_at;
+
+        if (!won_at || (uint16_t)(stamp - won_at) > config->block_timeout) {
+          statistics_record(config, STAT_CONFLICT_WON, 1);
+        }
+
+        blocks[block_index].conflict_won_at = stamp;
         blocks[block_index].timeout = 0;
         block_update_claims(config);
         continue;

@@ -52,6 +52,7 @@ ATTR_NONNULL(2) int block_own(ddhcp_block* block, ddhcp_config* config) {
   }
 
   block->state = DDHCP_OURS;
+  block->conflict_won_at = 0;
   block->first_claimed = time(NULL);
   NODE_ID_CP(&block->node_id, &config->node_id);
   return 0;
