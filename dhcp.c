@@ -189,23 +189,71 @@ ATTR_NONNULL_ALL int dhcp_process(uint8_t* buffer, ssize_t len, ddhcp_config* co
   return 0;
 }
 
+/**
+ * Search our own blocks for a lease which is offered or leased to chaddr.
+ */
+ATTR_NONNULL_ALL static dhcp_lease* dhcp_find_lease_of_client(uint8_t* chaddr, ddhcp_config* config, ddhcp_block** lease_block, uint32_t* lease_index) {
+  ddhcp_block* block = config->blocks;
+
+  for (uint32_t i = 0; i < config->number_of_blocks; i++, block++) {
+    if (block->state != DDHCP_OURS || !block->addresses) {
+      continue;
+    }
+
+    for (uint32_t j = 0; j < block->subnet_len; j++) {
+      dhcp_lease* lease = block->addresses + j;
+
+      if (lease->state != FREE && memcmp(lease->chaddr, chaddr, 16) == 0) {
+        *lease_block = block;
+        *lease_index = j;
+        return lease;
+      }
+    }
+  }
+
+  return NULL;
+}
+
 ATTR_NONNULL_ALL int dhcp_hdl_discover(int socket, dhcp_packet* discover, ddhcp_config* config) {
   DEBUG("dhcp_hdl_discover(socket:%i, packet, config)\n", socket);
 
   time_t now = time(NULL);
-  ddhcp_block* lease_block = block_find_free_leases(config);
+  ddhcp_block* lease_block = NULL;
+  uint32_t lease_index = 0;
 
-  if (!lease_block) {
-    DEBUG("dhcp_hdl_discover(...): no block with free leases found\n");
-    return 3;
+  // A client which already has an address with us gets the same one again,
+  // otherwise every DISCOVER would use up another address.
+  dhcp_lease* lease = dhcp_find_lease_of_client((uint8_t*) discover->chaddr, config, &lease_block, &lease_index);
+
+  if (lease) {
+    DEBUG("dhcp_hdl_discover(...): client already has lease %i in block %i\n", lease_index, lease_block->index);
+  } else {
+    // Honor the requested address (option 50), if it is free and in one of
+    // our blocks.
+    uint8_t* address = find_option_requested_address(discover->options, discover->options_len);
+
+    if (address) {
+      struct in_addr requested_address;
+      memcpy(&requested_address, address, sizeof(struct in_addr));
+
+      if (find_lease_from_address(&requested_address, config, &lease_block, &lease_index) == 0 &&
+          lease_block->addresses && lease_block->addresses[lease_index].state == FREE) {
+        lease = lease_block->addresses + lease_index;
+        DEBUG("dhcp_hdl_discover(...): requested address is free, lease %i in block %i\n", lease_index, lease_block->index);
+      }
+    }
   }
 
-  uint32_t lease_index = dhcp_get_free_lease(lease_block);
-  dhcp_lease* lease = lease_block->addresses + lease_index;
-
   if (!lease) {
-    DEBUG("dhcp_hdl_discover(...): no free leases found, this should not happen!\n");
-    return 2;
+    lease_block = block_find_free_leases(config);
+
+    if (!lease_block) {
+      DEBUG("dhcp_hdl_discover(...): no block with free leases found\n");
+      return 3;
+    }
+
+    lease_index = dhcp_get_free_lease(lease_block);
+    lease = lease_block->addresses + lease_index;
   }
 
   dhcp_packet* packet = build_initial_packet(discover);
@@ -215,11 +263,15 @@ ATTR_NONNULL_ALL int dhcp_hdl_discover(int socket, dhcp_packet* discover, ddhcp_
     return 1;
   }
 
-  // Mark lease as offered and register client
+  // Mark lease as offered and register client. A lease which is already
+  // leased to this client stays leased and keeps its end.
   memcpy(&lease->chaddr, &discover->chaddr, 16);
   lease->xid = discover->xid;
-  lease->state = OFFERED;
-  lease->lease_end = now + DHCP_OFFER_TIMEOUT;
+
+  if (lease->state != LEASED) {
+    lease->state = OFFERED;
+    lease->lease_end = now + DHCP_OFFER_TIMEOUT;
+  }
 
   addr_add(&lease_block->subnet, &packet->yiaddr, (int)lease_index);
 
