@@ -476,6 +476,97 @@ ATTR_NONNULL_ALL void block_release(ddhcp_block* block, ddhcp_node_id node_id, s
   block->needless_since = 0;
 
   INFO("block_release(...): block %i released, %u active leases\n", block->index, dhcp_num_active(block, now));
+
+  if (!block->addresses) {
+    return;
+  }
+
+  for (uint32_t i = 0; i < block->subnet_len; i++) {
+    dhcp_lease* lease = block->addresses + i;
+
+    if (lease->state == LEASED && lease->lease_end > now) {
+      lease->handover = 1;
+    } else {
+      // Offers and expired leases are not handed over
+      lease->state = FREE;
+      lease->handover = 0;
+    }
+  }
+
+  block_release_handover(block, config);
+}
+
+ATTR_NONNULL_ALL void block_release_handover(ddhcp_block* block, ddhcp_config* config) {
+  if (block->state != DDHCP_RELEASING || !block->addresses) {
+    return;
+  }
+
+  time_t now = time(NULL);
+
+  for (uint32_t i = 0; i < block->subnet_len; i++) {
+    dhcp_lease* lease = block->addresses + i;
+
+    if (!lease->handover || lease->state != LEASED) {
+      continue;
+    }
+
+    // The same message a node sends when a client of a foreign block asks
+    // it for a renewal: the owner records the lease for this client, or
+    // answers with LEASENAK when it has given the address to another one.
+    ddhcp_mcast_packet* packet = new_ddhcp_packet(DDHCP_MSG_RENEWLEASE, config);
+
+    if (!packet) {
+      WARNING("block_release_handover(...): Failed to allocate ddhcpd mcast packet\n");
+      return;
+    }
+
+    ddhcp_renew_payload payload;
+    struct in_addr address;
+    addr_add(&block->subnet, &address, (int) i);
+    memcpy(&payload.chaddr, &lease->chaddr, 16);
+    memcpy(&payload.address, &address, sizeof(struct in_addr));
+    payload.xid = 0;
+    payload.lease_seconds = lease->lease_end > now ? (uint32_t) (lease->lease_end - now) : 0;
+    packet->renew_payload = &payload;
+
+    DEBUG("block_release_handover(...): hand over lease %i of block %i\n", i, block->index);
+    statistics_record(config, STAT_DIRECT_SEND_PKG, 1);
+    ssize_t bytes_send = send_packet_direct(packet, &block->owner_address, DDHCP_SKT_SERVER(config));
+    statistics_record(config, STAT_DIRECT_SEND_BYTE, (long int) bytes_send);
+    UNUSED(bytes_send);
+    free(packet);
+  }
+}
+
+ATTR_NONNULL_ALL void block_release_answer(uint32_t* address, uint8_t* chaddr, int ack, ddhcp_config* config) {
+  struct in_addr addr;
+  memcpy(&addr, address, sizeof(struct in_addr));
+  uint32_t offset = ntohl(addr.s_addr) - ntohl(config->prefix.s_addr);
+  uint32_t block_index = offset / config->block_size;
+
+  if (block_index >= config->number_of_blocks) {
+    return;
+  }
+
+  ddhcp_block* block = config->blocks + block_index;
+  uint32_t lease_index = offset % config->block_size;
+
+  if (block->state != DDHCP_RELEASING || !block->addresses) {
+    return;
+  }
+
+  dhcp_lease* lease = block->addresses + lease_index;
+
+  if (!lease->handover || memcmp(lease->chaddr, chaddr, 16) != 0) {
+    return;
+  }
+
+  // Either way the lease is the new owner's business now. On a NAK the owner
+  // has given the address to another client; ours gets a NAK on its next
+  // renewal, which goes to the owner.
+  INFO("block_release_answer(...): lease %i of block %i handed over (%s)\n", lease_index, block->index, ack ? "ACK" : "NAK");
+  lease->handover = 0;
+  lease->state = FREE;
 }
 
 ATTR_NONNULL_ALL static void block_release_finish(ddhcp_block* block, ddhcp_config* config) {
@@ -506,6 +597,9 @@ ATTR_NONNULL_ALL void block_check_timeouts(ddhcp_config* config) {
 
       if (block->timeout < now || !block->addresses || dhcp_num_active(block, now) == 0) {
         block_release_finish(block, config);
+      } else {
+        // Unanswered handovers are sent again on every house keeping run
+        block_release_handover(block, config);
       }
 
       block++;

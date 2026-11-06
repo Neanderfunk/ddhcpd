@@ -306,8 +306,9 @@ ATTR_NONNULL_ALL void ddhcp_dhcp_leaseack(struct ddhcp_mcast_packet* request, dd
   dhcp_packet* packet = dhcp_packet_list_find(&config->dhcp_packet_cache, request->renew_payload->xid, request->renew_payload->chaddr);
 
   if (!packet) {
-    // Ignore packet
-    DEBUG("ddhcp_dhcp_leaseack(...): No matching packet found, message ignored\n");
+    // No client waits for it: the answer to a handover of a lease from a
+    // block we lost (block_release_handover), if anything
+    block_release_answer(&request->renew_payload->address, request->renew_payload->chaddr, 1, config);
   } else {
     // Process packet
     dhcp_rhdl_ack(DDHCP_SKT_DHCP(config)->fd, packet, config);
@@ -331,8 +332,7 @@ ATTR_NONNULL_ALL void ddhcp_dhcp_leasenak(struct ddhcp_mcast_packet* request, dd
   dhcp_packet* packet = dhcp_packet_list_find(&config->dhcp_packet_cache, request->renew_payload->xid, request->renew_payload->chaddr);
 
   if (!packet) {
-    // Ignore packet
-    DEBUG("ddhcp_dhcp_leaseack(...): No matching packet found, message ignored\n");
+    block_release_answer(&request->renew_payload->address, request->renew_payload->chaddr, 0, config);
   } else {
     // Process packet
     dhcp_nack(DDHCP_SKT_DHCP(config)->fd, packet, config);

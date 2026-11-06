@@ -106,6 +106,9 @@ struct dhcp_lease {
   enum dhcp_lease_state state;
   uint32_t xid;
   time_t lease_end;
+  // In a DDHCP_RELEASING block: the lease is being handed over to the new
+  // owner of the block and the owner has not answered yet.
+  uint8_t handover;
 };
 typedef struct dhcp_lease dhcp_lease;
 

@@ -81,6 +81,17 @@ ATTR_NONNULL_ALL void block_check_timeouts(ddhcp_config* config);
 ATTR_NONNULL_ALL void block_release(ddhcp_block* block, ddhcp_node_id node_id, struct in6_addr* owner, ddhcp_config* config);
 
 /**
+ * (Re)send the leases of a DDHCP_RELEASING block, which the new owner has
+ * not confirmed yet, to the new owner (RENEWLEASE).
+ */
+ATTR_NONNULL_ALL void block_release_handover(ddhcp_block* block, ddhcp_config* config);
+
+/**
+ * The new owner answered a handover: the lease is no longer ours.
+ */
+ATTR_NONNULL_ALL void block_release_answer(uint32_t* address, uint8_t* chaddr, int ack, ddhcp_config* config);
+
+/**
  * Free block claim list structure.
  */
 #define block_free_claims(config) \
