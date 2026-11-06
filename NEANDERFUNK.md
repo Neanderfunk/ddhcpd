@@ -15,7 +15,11 @@ Gluon-community-packages baut).
 | Bestehende Lease wieder anbieten, Option 50 | jedes DISCOVER belegte eine neue Adresse (im Labor 73 Adressen je Client in 2 Minuten). Jetzt zuerst die Lease desselben Clients (chaddr), dann die gewünschte Adresse, wenn frei und in einem eigenen Block |
 | NAK für Leases anderer Clients | der Blockeigner bestätigte weitergeleitete REQUESTs nur nach Adresse; jetzt NAK, wenn die Lease einem anderen chaddr gehört, und der Client wird eingetragen |
 | Eigene Länge der Lernphase | `-l SEKUNDEN`; ohne Angabe wie bisher `block_timeout` lang |
-| Zusammenfassung für Maschinen | `ddhcpdctl -m`: je Zeile „Schlüssel Wert“, Blöcke (total = free + ours + claiming + foreign), Leases der eigenen Blöcke, mit `DDHCPD_STATISTICS` die Zähler für Roaming und DHCP (nie zurückgesetzt), je vergebener Lease eine Zeile `leased <mac>`. Für respondd und die Statusseite |
+| Zusammenfassung für Maschinen | `ddhcpdctl -m`: je Zeile „Schlüssel Wert“, Blöcke (total = free + ours + claiming + foreign + releasing), Leases der eigenen Blöcke, mit `DDHCPD_STATISTICS` die Zähler für Roaming und DHCP (nie zurückgesetzt), je vergebener Lease eine Zeile `leased <mac>`. Für respondd und die Statusseite |
+| Konflikt: mehr aktive Leases gewinnt | Claimen zwei Knoten denselben Block (nach Inselbetrieb, etwa beim Supernode-Schwenk), behält ihn, wer darin mehr aktive Leases hat; bei Gleichstand die node id wie bisher. Die Zahl steht im bisher reservierten Byte des Claims, kein neues Protokoll |
+| Verlierer lässt auslaufen | neuer Blockzustand RELEASING: nichts Neues mehr aus dem Block, Anfragen seiner Clients gehen an den neuen Eigner, fertig wenn keine eigene Lease mehr aktiv ist, spätestens nach der Lease-Zeit |
+| Verlierer übergibt seine Leases | je aktive Lease ein RENEWLEASE an den Gewinner (dieselbe Nachricht wie beim Roaming); der trägt sie ein (ACK) oder lehnt ab, wenn er die Adresse inzwischen anders vergeben hat (NAK, echte Doppelvergabe). Wiederholt, bis beantwortet |
+| Zähler für Konflikte | gewonnen, verloren, Übergaben ACK/NAK; Blöcke im Auslaufen in `-m` |
 | Keine Ausgabe je Paket auf stdout | `dhcp_packet_send` schrieb je Paket „Message LEN“ per printf; jetzt DEBUG |
 
 Ohne `-l` verhält sich der Zweig beim Start wie das Original. DISCOVER und
