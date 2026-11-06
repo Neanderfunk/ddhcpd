@@ -2,6 +2,7 @@
 #include "logger.h"
 #include "tools.h"
 
+#include <signal.h>
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/wait.h>
@@ -56,6 +57,12 @@ ATTR_NONNULL_ALL void hook_address(uint8_t type, struct in_addr* address, uint8_
     //Nothing to do as the parent
     return;
   }
+
+  // The main loop blocks SIGTERM and SIGINT outside epoll_pwait();
+  // the hook must not inherit that.
+  sigset_t no_signals;
+  sigemptyset(&no_signals);
+  sigprocmask(SIG_SETMASK, &no_signals, NULL);
 
   int err = execl(
     // Binary to execute
@@ -118,6 +125,12 @@ ATTR_NONNULL_ALL void hook(uint8_t type, ddhcp_config* config) {
     //Nothing to do as the parent
     return;
   }
+
+  // The main loop blocks SIGTERM and SIGINT outside epoll_pwait();
+  // the hook must not inherit that.
+  sigset_t no_signals;
+  sigemptyset(&no_signals);
+  sigprocmask(SIG_SETMASK, &no_signals, NULL);
 
   int err = execl(
     // Binary to execute

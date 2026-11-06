@@ -548,14 +548,30 @@ int main(int argc, char** argv) {
 
   INFO("loop timeout: %i msecs\n", get_loop_timeout(&config));
 
-  do {
+  // SIGTERM and SIGINT are only delivered while waiting in epoll_pwait(),
+  // so a signal can neither be lost between checking daemon_running and
+  // going to sleep nor interrupt the handling of a packet.
+  sigset_t term_signals, wait_mask;
+  sigemptyset(&term_signals);
+  sigaddset(&term_signals, SIGTERM);
+  sigaddset(&term_signals, SIGINT);
+  sigprocmask(SIG_BLOCK, &term_signals, &wait_mask);
+  sigdelset(&wait_mask, SIGTERM);
+  sigdelset(&wait_mask, SIGINT);
+
+  while (daemon_running) {
     int n = 0;
     do {
-      n = epoll_wait(config.epoll_fd, events, (int)maxevents, (int)loop_timeout);
-    } while (n < 0 && errno == EINTR);
+      n = epoll_pwait(config.epoll_fd, events, (int)maxevents, (int)loop_timeout, &wait_mask);
+    } while (n < 0 && errno == EINTR && daemon_running);
+
+    if (!daemon_running) {
+      INFO("Got signal to terminate, shutting down\n");
+      break;
+    }
 
     if (n < 0) {
-      ERROR("epoll error (%i) %s",errno,strerror(errno));
+      ERROR("epoll error (%i) %s\n",errno,strerror(errno));
     }
 
 #if LOG_LEVEL_LIMIT >= LOG_DEBUG
@@ -600,7 +616,7 @@ int main(int argc, char** argv) {
         house_keeping(&config);
       }
     }
-  } while (daemon_running);
+  }
 
   // --------------------------------------------------------------------------
   // Shutdown process, cleaning up stuff
