@@ -131,6 +131,15 @@ ATTR_NONNULL_ALL void ddhcp_block_process_claims(struct ddhcp_mcast_packet* pack
       }
 
       INFO("ddhcp_block_process_claims(...): node 0x%02x%02x%02x%02x%02x%02x%02x%02x claims our block %i, it wins (active leases %u to %u)\n", HEX_NODE_ID(packet->node_id), block_index, theirs, ours);
+      block_release(&blocks[block_index], packet->node_id, &packet->sender->sin6_addr, config);
+      continue;
+    }
+
+    if (blocks[block_index].state == DDHCP_RELEASING) {
+      // Keep our leases running out; just follow the current owner.
+      memcpy(&blocks[block_index].owner_address, &packet->sender->sin6_addr, sizeof(struct in6_addr));
+      memcpy(&blocks[block_index].node_id, &packet->node_id, sizeof(ddhcp_node_id));
+      continue;
     }
 
     {
@@ -170,6 +179,11 @@ ATTR_NONNULL_ALL void ddhcp_block_process_inquire(struct ddhcp_mcast_packet* pac
     }
 
     INFO("ddhcp_block_process_inquire(...): node 0x%02x%02x%02x%02x%02x%02x%02x%02x inquires block %i\n", HEX_NODE_ID(packet->node_id), tmp->block_index);
+
+    if (blocks[tmp->block_index].state == DDHCP_RELEASING) {
+      // Owned by the winner of the conflict, who answers for it
+      continue;
+    }
 
     if (blocks[tmp->block_index].state == DDHCP_OURS) {
       // Update Claims

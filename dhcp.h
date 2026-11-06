@@ -7,6 +7,9 @@
 #include "types.h"
 #include "dhcp_packet.h"
 
+// Seconds a lease is kept beyond the lease time handed to the client
+extern uint16_t DHCP_LEASE_SERVER_DELTA;
+
 /**
  * DHCP Process Packet
  */

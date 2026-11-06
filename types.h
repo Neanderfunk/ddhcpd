@@ -64,7 +64,11 @@ enum ddhcp_block_state {
   DDHCP_CLAIMED,
   DDHCP_CLAIMING,
   DDHCP_OURS,
-  DDHCP_BLOCKED
+  DDHCP_BLOCKED,
+  // Lost a conflict: another node owns the block now. We hand out nothing
+  // from it any more, but keep our leases until they are handed over or
+  // have expired (see block_release).
+  DDHCP_RELEASING
 };
 
 // List of ddhcp_block

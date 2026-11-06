@@ -4,6 +4,7 @@
 #include <math.h>
 
 #include "dhcp.h"
+#include "dhcp_options.h"
 #include "logger.h"
 #include "statistics.h"
 #include "tools.h"
@@ -464,12 +465,53 @@ ATTR_NONNULL_ALL void block_update_claims(ddhcp_config* config) {
   free(packet);
 }
 
+ATTR_NONNULL_ALL void block_release(ddhcp_block* block, ddhcp_node_id node_id, struct in6_addr* owner, ddhcp_config* config) {
+  time_t now = time(NULL);
+
+  block->state = DDHCP_RELEASING;
+  NODE_ID_CP(&block->node_id, &node_id);
+  memcpy(&block->owner_address, owner, sizeof(struct in6_addr));
+  // Longest a lease of ours can still be valid
+  block->timeout = now + find_in_option_store_address_lease_time(&config->options) + DHCP_LEASE_SERVER_DELTA;
+  block->needless_since = 0;
+
+  INFO("block_release(...): block %i released, %u active leases\n", block->index, dhcp_num_active(block, now));
+}
+
+ATTR_NONNULL_ALL static void block_release_finish(ddhcp_block* block, ddhcp_config* config) {
+  INFO("block_release_finish(...): block %i handed over\n", block->index);
+
+  if (block->addresses) {
+    free(block->addresses);
+    block->addresses = NULL;
+  }
+
+  // The winner owns it; its next claim refreshes the timeout.
+  block->state = DDHCP_CLAIMED;
+  block->timeout = time(NULL) + config->block_timeout;
+}
+
 ATTR_NONNULL_ALL void block_check_timeouts(ddhcp_config* config) {
   DEBUG("block_check_timeouts(config)\n");
   ddhcp_block* block = config->blocks;
   time_t now = time(NULL);
 
   for (uint32_t i = 0; i < config->number_of_blocks; i++) {
+    if (block->state == DDHCP_RELEASING) {
+      // Done when no lease of ours is active any more, at the latest when
+      // the longest lease has run out (block->timeout).
+      if (block->addresses) {
+        dhcp_check_timeouts(block);
+      }
+
+      if (block->timeout < now || !block->addresses || dhcp_num_active(block, now) == 0) {
+        block_release_finish(block, config);
+      }
+
+      block++;
+      continue;
+    }
+
     if (block->timeout < now && block->state != DDHCP_BLOCKED && block->state != DDHCP_FREE) {
       INFO("block_check_timeouts(...): Block %i FREE through timeout.\n", block->index);
       block_free(block);
@@ -588,6 +630,7 @@ ATTR_NONNULL_ALL void block_show_summary(int fd, ddhcp_config* config) {
     // total = free + ours + claiming + foreign always holds.
     case DDHCP_CLAIMED:
     case DDHCP_BLOCKED:
+    case DDHCP_RELEASING:
       blocks_foreign++;
       break;
 

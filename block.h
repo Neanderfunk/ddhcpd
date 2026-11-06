@@ -74,6 +74,13 @@ ATTR_NONNULL_ALL void block_update_claims(ddhcp_config* config);
 ATTR_NONNULL_ALL void block_check_timeouts(ddhcp_config* config);
 
 /**
+ * We lost a conflict for this block to node_id at owner: hand out nothing
+ * from it any more, keep the leases until they are no longer active. Client
+ * requests for them go to the new owner like for any foreign block.
+ */
+ATTR_NONNULL_ALL void block_release(ddhcp_block* block, ddhcp_node_id node_id, struct in6_addr* owner, ddhcp_config* config);
+
+/**
  * Free block claim list structure.
  */
 #define block_free_claims(config) \

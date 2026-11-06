@@ -56,6 +56,7 @@ ATTR_NONNULL_ALL void statistics_show(int fd, uint8_t reset, ddhcp_config* confi
 
     case DDHCP_CLAIMED:
     case DDHCP_OURS:
+    case DDHCP_RELEASING:
       blocks_claimed++;
       break;
 
