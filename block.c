@@ -430,9 +430,14 @@ ATTR_NONNULL_ALL void block_update_claims(ddhcp_config* config) {
         send_packet = 1;
       }
 
+      // The former reserved byte carries the number of active leases in the
+      // block (at most 128, the largest block). It decides a conflict when
+      // two nodes claim the same block, see ddhcp_block_process_claims.
+      uint32_t active = dhcp_num_active(block, now);
+
       packet->payload[index].block_index = block->index;
       packet->payload[index].timeout     = config->block_timeout;
-      packet->payload[index].reserved    = 0;
+      packet->payload[index].reserved    = (uint16_t) (active > 255 ? 255 : active);
 
       index++;
 

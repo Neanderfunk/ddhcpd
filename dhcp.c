@@ -681,6 +681,25 @@ ATTR_NONNULL_ALL uint32_t dhcp_num_free(struct ddhcp_block* block) {
   return num;
 }
 
+ATTR_NONNULL_ALL uint32_t dhcp_num_active(struct ddhcp_block* block, time_t now) {
+  uint32_t num = 0;
+  dhcp_lease* lease = block->addresses;
+
+  if (!lease) {
+    return 0;
+  }
+
+  for (unsigned int i = 0 ; i < block->subnet_len ; i++) {
+    if (lease->state == LEASED && lease->lease_end > now) {
+      num++;
+    }
+
+    lease++;
+  }
+
+  return num;
+}
+
 ATTR_NONNULL_ALL uint32_t dhcp_num_offered(struct ddhcp_block* block) {
   uint32_t num = 0;
   dhcp_lease* lease = block->addresses;

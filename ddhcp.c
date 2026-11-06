@@ -114,14 +114,26 @@ ATTR_NONNULL_ALL void ddhcp_block_process_claims(struct ddhcp_mcast_packet* pack
       continue;
     }
 
-    if (blocks[block_index].state == DDHCP_OURS && NODE_ID_CMP(packet->node_id, config->node_id) < 0) {
-      INFO("ddhcp_block_process_claims(...): node 0x%02x%02x%02x%02x%02x%02x%02x%02x claims our block %i\n", HEX_NODE_ID(packet->node_id), block_index);
-      // TODO Decide when and if we reclaim this block
-      //      Which node has more leases in this block, ..., who has the better node_id.
-      // Unrelated from the above, the original concept is claiming the block now.
-      blocks[block_index].timeout = 0;
-      block_update_claims(config);
-    } else {
+    // Another node claims one of our blocks: a conflict, typically after two
+    // parts of the mesh ran separately for longer than block_timeout. The
+    // node with more active leases in the block keeps it, so that fewer
+    // clients are affected; on a tie the node id decides as before. The
+    // number of active leases comes with the claim (former reserved byte).
+    if (blocks[block_index].state == DDHCP_OURS) {
+      uint32_t ours = dhcp_num_active(&blocks[block_index], now);
+      uint32_t theirs = claim->reserved;
+
+      if (ours > theirs || (ours == theirs && NODE_ID_CMP(packet->node_id, config->node_id) < 0)) {
+        INFO("ddhcp_block_process_claims(...): node 0x%02x%02x%02x%02x%02x%02x%02x%02x claims our block %i, we keep it (active leases %u to %u)\n", HEX_NODE_ID(packet->node_id), block_index, ours, theirs);
+        blocks[block_index].timeout = 0;
+        block_update_claims(config);
+        continue;
+      }
+
+      INFO("ddhcp_block_process_claims(...): node 0x%02x%02x%02x%02x%02x%02x%02x%02x claims our block %i, it wins (active leases %u to %u)\n", HEX_NODE_ID(packet->node_id), block_index, theirs, ours);
+    }
+
+    {
       // Notice the ownership
       blocks[block_index].state = DDHCP_CLAIMED;
       blocks[block_index].timeout = now + claim->timeout;

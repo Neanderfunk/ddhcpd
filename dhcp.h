@@ -68,6 +68,11 @@ ATTR_NONNULL_ALL uint32_t dhcp_num_free(struct ddhcp_block* block);
 ATTR_NONNULL_ALL uint32_t dhcp_num_offered(struct ddhcp_block* block);
 
 /**
+ * Number of leases in the block which are leased and not expired at now.
+ */
+ATTR_NONNULL_ALL uint32_t dhcp_num_active(struct ddhcp_block* block, time_t now);
+
+/**
  * Find first free lease in lease block and return its index.
  * This function asserts that there is a free lease, otherwise
  * it returns the value of block_subnet_len.
