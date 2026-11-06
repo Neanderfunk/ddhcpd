@@ -53,13 +53,16 @@ ATTR_NONNULL_ALL void printf_dhcp(dhcp_packet* packet) {
     if (option->len == 1) {
       DEBUG("DHCP OPTION [ code %i, length %i, value %i ]\n", option->code, option->len, option->payload[0]);
     } else if (option->code == DHCP_CODE_PARAMETER_REQUEST_LIST) {
-      DEBUG("DHCP OPTION [ code %i, length %i, value ", option->code, option->len);
+      // One line for the whole list (at most 255 codes of up to 4 chars).
+      char list[255 * 4 + 1];
+      size_t pos = 0;
+      list[0] = '\0';
 
       for (int k = 0; k < option->len; k++) {
-        LOG("%i ", option->payload[k]);
+        pos += (size_t) snprintf(list + pos, sizeof(list) - pos, "%i ", option->payload[k]);
       }
 
-      LOG("]\n");
+      DEBUG("DHCP OPTION [ code %i, length %i, value %s]\n", option->code, option->len, list);
     } else {
       DEBUG("DHCP OPTION [ code %i, length %i ]\n", option->code, option->len);
     }
