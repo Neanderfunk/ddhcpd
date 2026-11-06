@@ -17,6 +17,8 @@ stupid stuff, but also allow you maximal adaption.
     -S                     no client interface
     -t TENTATIVE           Time required for a block to be claimed
     -N NETWORK/CIDR        Network to announce and manage blocks in
+    -F NETWORK/CIDR        Network of another DHCP server: requests for addresses
+                           in it (outside -N) are ignored, not NAKed (repeatable)
     -o CODE:LEN:P1. .. .Pn DHCP Option with code, len and #len chars in decimal
     -b BLKSIZEPOW          Block size as power of two
     -B TIMEOUT             Block claim timeout

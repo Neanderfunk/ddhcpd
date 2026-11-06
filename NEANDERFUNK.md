@@ -24,6 +24,8 @@ Gluon-community-packages baut).
 | Sofort beenden auf SIGTERM/SIGINT | die Schleife wiederholte `epoll_wait` nach EINTR, ohne das Abbruch-Flag zu prüfen, und merkte das Signal erst nach dem nächsten Timeout (7.5 s); procd schickt nach 5 s SIGKILL, jeder Neustart dauerte so lange. Jetzt `epoll_pwait`, die Signale kommen nur dort an |
 | NAK mit Server-ID, per Broadcast | das DHCPNAK trug nur den Nachrichtentyp; udhcpc verwirft ein NAK ohne Server-ID (RFC 2131 verlangt sie), und im RENEWING ging es per Unicast an `ciaddr`. Nach einem Blockkonflikt behielt der Client des Verlierers so eine doppelt vergebene Adresse bis zum Lease-Ende |
 | Übergabe-NAK hält die Adresse | lehnt der Gewinner eine übergebene Lease ab, vergibt er die Adresse nicht neu, bevor die Lease des Verlierers abgelaufen ist (die Restzeit kommt im RENEWLEASE mit) |
+| Kein NAK für Adressen anderer DHCP-Server (`-F`) | `-F NETZ/CIDR`, bis zu achtmal: liegt die Adresse eines REQUEST nicht in `-N`, aber in einem dieser Netze (bei uns der Kea-Bereich der Gateways), antwortet ddhcpd nicht. Bisher kam immer ein NAK, schneller als das ACK von Kea, und dhclient/dhcpcd ließen ihre Kea-Adresse fallen. Andere fremde Adressen bekommen weiter ein NAK. Zähler `dhcp_request_ignored` in `-m` |
+| REQUEST mit fremder Server-ID nicht beantworten | RFC 2131 4.3.2: ein REQUEST mit der Server-ID eines anderen Servers nimmt dessen OFFER an; bisher NAK, jetzt keine Antwort (gezählt in `dhcp_request_ignored`) |
 | Option 55 nur im Debug-Log | die Liste der angefragten Optionen ging je Paket ungefiltert nach stderr („1 3 6 ]“, unter procd als daemon.err); jetzt eine DEBUG-Zeile |
 
 Ohne `-l` verhält sich der Zweig beim Start wie das Original. DISCOVER und
