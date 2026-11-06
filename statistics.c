@@ -34,6 +34,10 @@ ATTR_NONNULL_ALL void statistics_show(int fd, uint8_t reset, ddhcp_config* confi
   dprintf(fd, "dhcp.send_ack %li\n", config->statistics[STAT_DHCP_SEND_ACK]);
   dprintf(fd, "dhcp.send_nak %li\n", config->statistics[STAT_DHCP_SEND_NAK]);
   dprintf(fd, "dhcp.recv_release %li\n", config->statistics[STAT_DHCP_RECV_RELEASE]);
+  dprintf(fd, "conflict.won %li\n", config->statistics[STAT_CONFLICT_WON]);
+  dprintf(fd, "conflict.lost %li\n", config->statistics[STAT_CONFLICT_LOST]);
+  dprintf(fd, "conflict.handover_ack %li\n", config->statistics[STAT_HANDOVER_ACK]);
+  dprintf(fd, "conflict.handover_nak %li\n", config->statistics[STAT_HANDOVER_NAK]);
 
 
   // calculate block status

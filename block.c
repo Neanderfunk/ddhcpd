@@ -567,6 +567,7 @@ ATTR_NONNULL_ALL void block_release_answer(uint32_t* address, uint8_t* chaddr, i
   INFO("block_release_answer(...): lease %i of block %i handed over (%s)\n", lease_index, block->index, ack ? "ACK" : "NAK");
   lease->handover = 0;
   lease->state = FREE;
+  statistics_record(config, ack ? STAT_HANDOVER_ACK : STAT_HANDOVER_NAK, 1);
 }
 
 ATTR_NONNULL_ALL static void block_release_finish(ddhcp_block* block, ddhcp_config* config) {
@@ -706,7 +707,7 @@ void block_unmark_needless(ddhcp_config* config){
 
 ATTR_NONNULL_ALL void block_show_summary(int fd, ddhcp_config* config) {
   ddhcp_block* block = config->blocks;
-  uint32_t blocks_free = 0, blocks_ours = 0, blocks_claiming = 0, blocks_foreign = 0;
+  uint32_t blocks_free = 0, blocks_ours = 0, blocks_claiming = 0, blocks_foreign = 0, blocks_releasing = 0;
   uint32_t leases_leased = 0, leases_offered = 0, leases_free = 0;
 
   for (uint32_t i = 0; i < config->number_of_blocks; i++, block++) {
@@ -721,11 +722,14 @@ ATTR_NONNULL_ALL void block_show_summary(int fd, ddhcp_config* config) {
       break;
 
     // BLOCKED is never set today; counted with the foreign blocks, so that
-    // total = free + ours + claiming + foreign always holds.
+    // total = free + ours + claiming + foreign + releasing always holds.
     case DDHCP_CLAIMED:
     case DDHCP_BLOCKED:
-    case DDHCP_RELEASING:
       blocks_foreign++;
+      break;
+
+    case DDHCP_RELEASING:
+      blocks_releasing++;
       break;
 
     case DDHCP_OURS:
@@ -768,6 +772,7 @@ ATTR_NONNULL_ALL void block_show_summary(int fd, ddhcp_config* config) {
   dprintf(fd, "blocks_ours %u\n", blocks_ours);
   dprintf(fd, "blocks_claiming %u\n", blocks_claiming);
   dprintf(fd, "blocks_foreign %u\n", blocks_foreign);
+  dprintf(fd, "blocks_releasing %u\n", blocks_releasing);
   dprintf(fd, "leases_total %u\n", blocks_ours * config->block_size);
   dprintf(fd, "leases_leased %u\n", leases_leased);
   dprintf(fd, "leases_offered %u\n", leases_offered);
@@ -787,6 +792,10 @@ ATTR_NONNULL_ALL void block_show_summary(int fd, ddhcp_config* config) {
   dprintf(fd, "dhcp_nak %li\n", config->statistics[STAT_DHCP_SEND_NAK]);
   dprintf(fd, "dhcp_release %li\n", config->statistics[STAT_DHCP_RECV_RELEASE]);
   dprintf(fd, "dhcp_inform %li\n", config->statistics[STAT_DHCP_RECV_INFORM]);
+  dprintf(fd, "conflicts_won %li\n", config->statistics[STAT_CONFLICT_WON]);
+  dprintf(fd, "conflicts_lost %li\n", config->statistics[STAT_CONFLICT_LOST]);
+  dprintf(fd, "conflicts_handover_ack %li\n", config->statistics[STAT_HANDOVER_ACK]);
+  dprintf(fd, "conflicts_handover_nak %li\n", config->statistics[STAT_HANDOVER_NAK]);
 #endif
 
   block = config->blocks;
