@@ -15,12 +15,15 @@ Gluon-community-packages baut).
 | Bestehende Lease wieder anbieten, Option 50 | jedes DISCOVER belegte eine neue Adresse (im Labor 73 Adressen je Client in 2 Minuten). Jetzt zuerst die Lease desselben Clients (chaddr), dann die gewünschte Adresse, wenn frei und in einem eigenen Block |
 | NAK für Leases anderer Clients | der Blockeigner bestätigte weitergeleitete REQUESTs nur nach Adresse; jetzt NAK, wenn die Lease einem anderen chaddr gehört, und der Client wird eingetragen |
 | Eigene Länge der Lernphase | `-l SEKUNDEN`; ohne Angabe wie bisher `block_timeout` lang |
+| Zusammenfassung für Maschinen | `ddhcpdctl -m`: je Zeile „Schlüssel Wert“, Blöcke (total = free + ours + claiming + foreign), Leases der eigenen Blöcke, mit `DDHCPD_STATISTICS` die Zähler für Roaming und DHCP (nie zurückgesetzt), je vergebener Lease eine Zeile `leased <mac>`. Für respondd und die Statusseite |
+| Keine Ausgabe je Paket auf stdout | `dhcp_packet_send` schrieb je Paket „Message LEN“ per printf; jetzt DEBUG |
 
 Ohne `-l` verhält sich der Zweig beim Start wie das Original. DISCOVER und
 REQUEST verhalten sich bewusst anders (siehe Tabelle).
 
 Logging: Der Logger schreibt nach stderr, sichtbar ist ab Werk nur WARNING
-und schlimmer; mehr mit `-v` (mehrfach).
+und schlimmer; mehr mit `-v` (mehrfach). Auf stdout kommen nur noch `-h` und
+`-V`.
 
 Lizenz wie das Original: GPL-3.0.
 
