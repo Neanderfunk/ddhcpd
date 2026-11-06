@@ -304,7 +304,7 @@ ATTR_NONNULL_ALL ssize_t dhcp_packet_send(int socket, dhcp_packet* packet) {
   buffer[_dhcp_packet_len(packet) - 1] = 255;
   assert(obuf + 1 == buffer + _dhcp_packet_len(packet));
   // Network send
-  printf("Message LEN: %zu\n", _dhcp_packet_len(packet));
+  DEBUG("dhcp_packet_send(...): message length %zu\n", _dhcp_packet_len(packet));
 
   struct sockaddr_in *address = &broadcast;
   // Check the broadcast flag

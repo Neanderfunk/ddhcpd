@@ -88,7 +88,7 @@ ATTR_NONNULL_ALL int handle_command(int socket, uint8_t* buffer, ssize_t msglen,
 
     option->code = buffer[1];
     option->len = buffer[2];
-    printf("%i:%i\n", buffer[1], buffer[2]);
+    DEBUG("handle_command(...): set dhcp option %i, length %i\n", buffer[1], buffer[2]);
     option->payload = calloc(option->len, 1);
 
     if (!option->payload) {
