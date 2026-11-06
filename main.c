@@ -246,8 +246,10 @@ int main(int argc, char** argv) {
   int c;
   int show_usage = 0;
   int learning_phase = 1;
+  // Length of the learning phase in seconds, unset (-1) means block_timeout.
+  long learning_time = -1;
 
-  while ((c = getopt(argc, argv, "C:c:i:St:dvVDhLb:B:N:o:s:H:n:")) != -1) {
+  while ((c = getopt(argc, argv, "C:c:i:St:dvVDhLl:b:B:N:o:s:H:n:")) != -1) {
     switch (c) {
     case 'i':
       if (strlen(optarg) > IFNAMSIZ) {
@@ -307,6 +309,18 @@ int main(int argc, char** argv) {
 
     case 'L':
       learning_phase = 0;
+      break;
+
+    case 'l':
+      {
+        char* end = NULL;
+        errno = 0;
+        learning_time = strtol(optarg, &end, 10);
+        if (errno || !end || *end || learning_time < 0 || learning_time > UINT16_MAX) {
+          ERROR("Malformed learning phase length '%s'\n", optarg);
+          exit(1);
+        }
+      }
       break;
 
     case 'V':
@@ -389,7 +403,7 @@ int main(int argc, char** argv) {
   }
 
   if (show_usage) {
-    printf("Usage: %s [-h] [-d|-D] [-L] [-c CLT-IFACE|-S] [-i SRV-IFACE] [-t TENTATIVE-TIMEOUT] [-B BLOCK-TIMEOUT]\n", argv[0]);
+    printf("Usage: %s [-h] [-d|-D] [-L|-l SECONDS] [-c CLT-IFACE|-S] [-i SRV-IFACE] [-t TENTATIVE-TIMEOUT] [-B BLOCK-TIMEOUT]\n", argv[0]);
     printf("\n");
     printf("-h                     This usage information\n");
     printf("-c CLT-IFACE           Interface on which requests from clients are handled\n");
@@ -403,6 +417,7 @@ int main(int argc, char** argv) {
     printf("-n NEEDLESS_TIMEOUT    Time until we release needless blocks\n");
     printf("-s SPARELEASES         Amount of spare leases (max: 256)\n");
     printf("-L                     Deactivate learning phase\n");
+    printf("-l SECONDS             Length of the learning phase (default: block timeout)\n");
     printf("-d                     Run in background and daemonize\n");
     printf("-D                     Run in foreground and log to console (default)\n");
     printf("-C CTRL_PATH           Path to control socket\n");
@@ -511,11 +526,17 @@ int main(int argc, char** argv) {
   int need_house_keeping = 0;
   uint32_t loop_timeout = config.loop_timeout = get_loop_timeout(&config);
   time_t now = time(NULL);
-  // The first time we want to make housekeeping is after the learning phase, 
-  // which is block_timeout long. 
-  time_t timeout_time = now + config.block_timeout;
+  // The first time we want to make housekeeping is after the learning phase,
+  // which is block_timeout long unless set with -l.
+  if (learning_time < 0) {
+    learning_time = config.block_timeout;
+  }
 
-  if (!learning_phase) {
+  time_t timeout_time = now + learning_time;
+  INFO("CONFIG: learning phase=%li\n", learning_phase ? learning_time : 0L);
+
+  if (!learning_phase || learning_time == 0) {
+    learning_phase = 0;
     // We want no learning phase, so reset all the timers
     loop_timeout = 0;
     timeout_time = now;
