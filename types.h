@@ -56,6 +56,7 @@ enum {
   STAT_CONFLICT_LOST,
   STAT_HANDOVER_ACK,
   STAT_HANDOVER_NAK,
+  STAT_DHCP_IGNORE_REQUEST,
   STAT_NUM_OF_FIELDS
 };
 #endif
@@ -160,6 +161,14 @@ enum dhcp_option_code {
 #define DDHCP_SKT_CONTROL(config) ((ddhcp_epoll_data*) config->sockets[SKT_CONTROL])
 
 
+// Networks of other DHCP servers (-F): requests for addresses in them are
+// ignored instead of NAKed. Host byte order.
+#define DDHCP_MAX_FOREIGN_NETS 8
+struct ddhcp_net {
+  uint32_t net;
+  uint32_t mask;
+};
+
 // configuration and global state
 struct ddhcp_config {
   ddhcp_node_id node_id;
@@ -174,6 +183,8 @@ struct ddhcp_config {
   uint8_t prefix_len;
   uint8_t disable_dhcp;
   uint8_t learning_phase;
+  struct ddhcp_net foreign_nets[DDHCP_MAX_FOREIGN_NETS];
+  uint8_t foreign_nets_len;
 
   // Global Stuff
   time_t next_wakeup;

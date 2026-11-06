@@ -223,6 +223,7 @@ int main(int argc, char** argv) {
   config.tentative_timeout = 15;
   config.control_path = (char*)"/tmp/ddhcpd_ctl";
   config.disable_dhcp = 0;
+  config.foreign_nets_len = 0;
 
   config.hook_command = NULL;
 
@@ -249,7 +250,7 @@ int main(int argc, char** argv) {
   // Length of the learning phase in seconds, unset (-1) means block_timeout.
   long learning_time = -1;
 
-  while ((c = getopt(argc, argv, "C:c:i:St:dvVDhLl:b:B:N:o:s:H:n:")) != -1) {
+  while ((c = getopt(argc, argv, "C:c:i:St:dvVDhLl:b:B:N:F:o:s:H:n:")) != -1) {
     switch (c) {
     case 'i':
       if (strlen(optarg) > IFNAMSIZ) {
@@ -355,6 +356,38 @@ int main(int argc, char** argv) {
       } while (0);
       break;
 
+    case 'F':
+      do {
+        char* cidr = strchr(optarg, '/');
+        struct in_addr net;
+        char* end = NULL;
+        long len = cidr ? strtol(cidr + 1, &end, 10) : -1;
+
+        if (cidr) {
+          cidr[0] = '\0';
+        }
+
+        if (!cidr || end == cidr + 1 || *end != '\0' || len < 0 || len > 32 || !inet_aton(optarg, &net)) {
+          if (cidr) {
+            cidr[0] = '/';
+          }
+
+          ERROR("Malformed foreign network '%s'\n", optarg);
+          exit(1);
+        }
+
+        if (config.foreign_nets_len >= DDHCP_MAX_FOREIGN_NETS) {
+          ERROR("More than %i foreign networks\n", DDHCP_MAX_FOREIGN_NETS);
+          exit(1);
+        }
+
+        uint32_t mask = len ? ~(uint32_t)0 << (32 - len) : 0;
+        config.foreign_nets[config.foreign_nets_len].mask = mask;
+        config.foreign_nets[config.foreign_nets_len].net = ntohl(net.s_addr) & mask;
+        config.foreign_nets_len++;
+      } while (0);
+      break;
+
     case 'S':
       config.disable_dhcp = 1;
       break;
@@ -411,6 +444,8 @@ int main(int argc, char** argv) {
     printf("-S                     no Client interface\n");
     printf("-t TENTATIVE           Time required for a block to be claimed\n");
     printf("-N NETWORK/CIDR        Network to announce and manage blocks in\n");
+    printf("-F NETWORK/CIDR        Network of another DHCP server: requests for addresses\n");
+    printf("                       in it (outside -N) are ignored, not NAKed (repeatable)\n");
     printf("-o CODE:LEN:P1. .. .Pn DHCP Option with code,len and #len chars in decimal\n");
     printf("-b BLKSIZEPOW          Power over two of block size\n");
     printf("-B TIMEOUT             Block claim timeout\n");

@@ -791,6 +791,7 @@ ATTR_NONNULL_ALL void block_show_summary(int fd, ddhcp_config* config) {
   dprintf(fd, "dhcp_request %li\n", config->statistics[STAT_DHCP_RECV_REQUEST]);
   dprintf(fd, "dhcp_ack %li\n", config->statistics[STAT_DHCP_SEND_ACK]);
   dprintf(fd, "dhcp_nak %li\n", config->statistics[STAT_DHCP_SEND_NAK]);
+  dprintf(fd, "dhcp_request_ignored %li\n", config->statistics[STAT_DHCP_IGNORE_REQUEST]);
   dprintf(fd, "dhcp_release %li\n", config->statistics[STAT_DHCP_RECV_RELEASE]);
   dprintf(fd, "dhcp_inform %li\n", config->statistics[STAT_DHCP_RECV_INFORM]);
   dprintf(fd, "conflicts_won %li\n", config->statistics[STAT_CONFLICT_WON]);

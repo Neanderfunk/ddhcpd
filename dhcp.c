@@ -67,6 +67,21 @@ ATTR_NONNULL(1,2) uint8_t find_lease_from_address(struct in_addr* addr, ddhcp_co
   return 2;
 }
 
+/**
+ * Is addr in one of the networks of other DHCP servers (-F)?
+ */
+ATTR_NONNULL_ALL static int dhcp_is_foreign_address(struct in_addr* addr, ddhcp_config* config) {
+  uint32_t a = ntohl(addr->s_addr);
+
+  for (uint8_t i = 0; i < config->foreign_nets_len; i++) {
+    if ((a & config->foreign_nets[i].mask) == config->foreign_nets[i].net) {
+      return 1;
+    }
+  }
+
+  return 0;
+}
+
 ATTR_NONNULL_ALL static void _dhcp_release_lease(ddhcp_block* block, uint32_t lease_index) {
   INFO("dhcp_release_lease(...): Releasing lease %i in block %i\n", lease_index, block->index);
   dhcp_lease* lease = block->addresses + lease_index;
@@ -404,6 +419,15 @@ ATTR_NONNULL_ALL int dhcp_hdl_request(int socket, struct dhcp_packet* request, d
   if (found_address) {
     // Calculate block and dhcp_lease from address
     uint8_t found = find_lease_from_address(&requested_address, config, &lease_block, &lease_index);
+
+    if (found == 2 && dhcp_is_foreign_address(&requested_address, config)) {
+      // Outside of our network, but in one of another DHCP server (-F), for
+      // example the one on the gateways: that server answers, a NAK from us
+      // would arrive first and make the client drop its address.
+      INFO("dhcp_hdl_request(...): %s belongs to another DHCP server, not answering\n", inet_ntoa(requested_address));
+      statistics_record(config, STAT_DHCP_IGNORE_REQUEST, 1);
+      return 2;
+    }
 
     if (found != 2) {
       lease = lease_block->addresses + lease_index;

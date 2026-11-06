@@ -33,6 +33,7 @@ ATTR_NONNULL_ALL void statistics_show(int fd, uint8_t reset, ddhcp_config* confi
   dprintf(fd, "dhcp.recv_request %li\n", config->statistics[STAT_DHCP_RECV_REQUEST]);
   dprintf(fd, "dhcp.send_ack %li\n", config->statistics[STAT_DHCP_SEND_ACK]);
   dprintf(fd, "dhcp.send_nak %li\n", config->statistics[STAT_DHCP_SEND_NAK]);
+  dprintf(fd, "dhcp.ignore_request %li\n", config->statistics[STAT_DHCP_IGNORE_REQUEST]);
   dprintf(fd, "dhcp.recv_release %li\n", config->statistics[STAT_DHCP_RECV_RELEASE]);
   dprintf(fd, "conflict.won %li\n", config->statistics[STAT_CONFLICT_WON]);
   dprintf(fd, "conflict.lost %li\n", config->statistics[STAT_CONFLICT_LOST]);
