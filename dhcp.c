@@ -304,8 +304,8 @@ ATTR_NONNULL_ALL int dhcp_hdl_discover(int socket, dhcp_packet* discover, ddhcp_
   return 0;
 }
 
-ATTR_NONNULL_ALL int dhcp_rhdl_request(uint32_t* address, ddhcp_config* config) {
-  DEBUG("dhcp_rhdl_request(address,config)\n");
+ATTR_NONNULL_ALL int dhcp_rhdl_request(uint32_t* address, uint8_t* chaddr, ddhcp_config* config) {
+  DEBUG("dhcp_rhdl_request(address,chaddr,config)\n");
 
   time_t now = time(NULL);
   ddhcp_block* lease_block = NULL;
@@ -317,9 +317,17 @@ ATTR_NONNULL_ALL int dhcp_rhdl_request(uint32_t* address, ddhcp_config* config) 
   uint8_t found = find_lease_from_address(&requested_address, config, &lease_block, &lease_index);
 
   if (found == 0) {
-    // Update lease information
-    // TODO Check for validity of request (chaddr)
     dhcp_lease* lease = lease_block->addresses + lease_index;
+
+    // A lease of another client is not handed over
+    if (lease->state != FREE && memcmp(lease->chaddr, chaddr, 16) != 0) {
+      DEBUG("dhcp_rhdl_request(...): lease belongs to another client\n");
+      return 1;
+    }
+
+    // Update lease information
+    memcpy(lease->chaddr, chaddr, 16);
+    lease->state = LEASED;
     lease->lease_end = now + find_in_option_store_address_lease_time(&config->options)  + DHCP_LEASE_SERVER_DELTA;
     // Report ack
     return 0;
@@ -437,16 +445,13 @@ ATTR_NONNULL_ALL int dhcp_hdl_request(int socket, struct dhcp_packet* request, d
         return 2;
 
       } else if (lease_block->state == DDHCP_OURS) {
-        if (lease->state != OFFERED || lease->xid != request->xid) {
-          if (memcmp(request->chaddr, lease->chaddr, 16) != 0) {
-            // Check if lease is free
-            if (lease->state != FREE) {
-              DEBUG("dhcp_hdl_request(...): Requested lease offered to other client\n");
-              // Send DHCP_NACK
-              dhcp_nack(socket, request, config);
-              return 2;
-            }
-          }
+        // A lease offered or leased to another client is never confirmed,
+        // not even on a matching xid.
+        if (lease->state != FREE && memcmp(request->chaddr, lease->chaddr, 16) != 0) {
+          DEBUG("dhcp_hdl_request(...): Requested lease offered to other client\n");
+          // Send DHCP_NACK
+          dhcp_nack(socket, request, config);
+          return 2;
         }
       } else {
         // Block is neither blocked nor ours, so probably say nak here

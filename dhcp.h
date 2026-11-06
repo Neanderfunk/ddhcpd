@@ -31,7 +31,7 @@ ATTR_NONNULL_ALL int dhcp_hdl_request(int socket, struct dhcp_packet* request, d
 /**
  * DDHCP Remote Request (Renew)
  */
-ATTR_NONNULL_ALL int dhcp_rhdl_request(uint32_t* address, ddhcp_config* config);
+ATTR_NONNULL_ALL int dhcp_rhdl_request(uint32_t* address, uint8_t* chaddr, ddhcp_config* config);
 /**
  * DDHCP Remote Answer (Ack)
  */

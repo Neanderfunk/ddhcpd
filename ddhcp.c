@@ -232,7 +232,7 @@ ATTR_NONNULL_ALL void ddhcp_dhcp_renewlease(struct ddhcp_mcast_packet* packet, d
   free(hwaddr);
 #endif
 
-  int ret = dhcp_rhdl_request(&(packet->renew_payload->address), config);
+  int ret = dhcp_rhdl_request(&(packet->renew_payload->address), packet->renew_payload->chaddr, config);
 
   ddhcp_mcast_packet* answer = NULL;
 
