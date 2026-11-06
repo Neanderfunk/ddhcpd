@@ -587,8 +587,16 @@ ATTR_NONNULL_ALL int dhcp_nack(int socket, dhcp_packet* from_client, ddhcp_confi
     return 1;
   }
 
-  packet->options_len = 1;
-  packet->options = calloc(1, sizeof(dhcp_option));
+  // RFC 2131 4.3.2: a DHCPNAK carries the server identifier, and clients
+  // ignore one without (busybox udhcpc: "received DHCP NAK with wrong server
+  // ID"). Table 3: ciaddr is 0, and without a relay (giaddr 0) the NAK is
+  // broadcast; dhcp_packet_send() would otherwise unicast to ciaddr, whose
+  // ARP entry may well point at the other client using the same address.
+  dhcp_option* server_id = find_in_option_store(&config->options, DHCP_CODE_SERVER_IDENTIFIER);
+  memset(&packet->ciaddr, 0, sizeof(packet->ciaddr));
+
+  packet->options_len = server_id ? 2 : 1;
+  packet->options = calloc(packet->options_len, sizeof(dhcp_option));
 
   if (!packet->options) {
     WARNING("dhcp_nack(...): option memory allocation failed\n");
@@ -599,6 +607,10 @@ ATTR_NONNULL_ALL int dhcp_nack(int socket, dhcp_packet* from_client, ddhcp_confi
   set_option(packet->options, packet->options_len, DHCP_CODE_MESSAGE_TYPE, 1, (uint8_t[]) {
     DHCPNAK
   });
+
+  if (server_id) {
+    set_option(packet->options, packet->options_len, DHCP_CODE_SERVER_IDENTIFIER, server_id->len, server_id->payload);
+  }
 
   statistics_record(config, STAT_DHCP_SEND_PKG, 1);
   statistics_record(config, STAT_DHCP_SEND_NAK, 1);
